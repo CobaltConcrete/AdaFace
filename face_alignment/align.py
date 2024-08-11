@@ -65,27 +65,48 @@ def add_padding(pil_img, top, right, bottom, left, color=(0,0,0)):
     return result
 
 def get_aligned_face(image_path, source, rgb_pil_image=None):
-    
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
     torch.backends.cudnn.benchmark = True
     time1 = time.time()
     count = 0
+    
+    # Load image from path or PIL image object
     if rgb_pil_image is None:
         img = Image.open(image_path).convert('RGB')
     else:
         assert isinstance(rgb_pil_image, Image.Image), 'Face alignment module requires PIL image or path to the image'
         img = rgb_pil_image
-    # find face
+    
     time2 = time.time()
     try:
-        # bboxes, faces = mtcnn_model.align_multi(img=img, limit=2)
+        # Initialize face detection
         bboxes, faces = [], []
         face_detector = detector.get(np.asarray(img))
+        
+        # Check if any faces are detected
+        if not face_detector:
+            print(f"No faces detected in the image: {image_path}")
+            return None, None
+
         for each_face in face_detector:
-            aligned_face = norm_crop(img=img, landmark=faces['kps'], image_size=112, mode='arcface')
-            bboxes.append(faces['bbox'])
+            # Align face using detected landmarks (keypoints)
+            aligned_face = norm_crop(img=img, landmark=each_face['kps'], image_size=112, mode='arcface')
+            bboxes.append(each_face['bbox'])
             faces.append(aligned_face)
+
+        # Ensure at least one face is found before returning
+        if faces:
+            return faces[0], bboxes
+        else:
+            print(f"No aligned faces could be extracted from the image: {image_path}")
+            return None, None
+
+    except Exception as e:
+        print(f"An error occurred while processing the image: {image_path}")
+        print(f"Error details: {str(e)}")
+        return None, None
+
 
     except Exception as e:
         print('Face detection Failed due to error.')
