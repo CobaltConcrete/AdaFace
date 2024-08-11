@@ -311,6 +311,7 @@ class Backbone(Module):
                 modules.append(
                     unit_module(bottleneck.in_channel, bottleneck.depth,
                                 bottleneck.stride))
+                torch.cuda.synchronize()
         self.body = Sequential(*modules)
 
         initialize_weights(self.modules())
